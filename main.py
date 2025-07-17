@@ -7,7 +7,7 @@ from flask import Flask, send_from_directory
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
 
-app.register_blueprint(user_bp, url_prefix='/api')
+#app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(scraper_bp, url_prefix='/')
 
 # uncomment if you need to use database
