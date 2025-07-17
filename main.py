@@ -33,6 +33,15 @@ def serve(path):
         else:
             return "index.html not found", 404
 
+@app.route("/")
+def home():
+    return "🎉 8Property backend is live!"
+
+@app.route("/run")
+def run():
+    return "✅ /run endpoint is working!"
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
