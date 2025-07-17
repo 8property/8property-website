@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # Main web application (React + API Gateway)
+  web-app:
+    build: ./api-gateway
+    ports:
+      - "80:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - CRM_SERVICE_URL=http://crm-service:5000
+      - ANALYTICS_SERVICE_URL=http://analytics-service:5000
+      - AI_ENRICHMENT_SERVICE_URL=http://ai-enrichment:5000
+      - SCRAPER_28HSE_URL=http://scraper-28hse:5000
+      - SCRAPER_SQUAREFOOT_URL=http://scraper-squarefoot:5000
+    depends_on:
+      - crm-service
+      - analytics-service
+      - ai-enrichment
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # CRM Service
+  crm-service:
+    build: ./property-crm
+    ports:
+      - "5001:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///src/database/crm.db
+    volumes:
+      - crm-data:/app/src/database
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Analytics Service
+  analytics-service:
+    build: ./analytics-service
+    ports:
+      - "5002:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///src/database/analytics.db
+    volumes:
+      - analytics-data:/app/src/database
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AI Content Enrichment Service
+  ai-enrichment:
+    build: ./ai-content-enrichment
+    ports:
+      - "5003:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 28Hse Scraper Service
+  scraper-28hse:
+    build: ./28hse-scraper
+    ports:
+      - "5004:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - DISPLAY=:99
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Squarefoot Scraper Service
+  scraper-squarefoot:
+    build: ./squarefoot-scraper
+    ports:
+      - "5005:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - DISPLAY=:99
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL for production database (optional upgrade from SQLite)
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=property_agency
+      - POSTGRES_USER=property_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-defaultpassword}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - property-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U property_user -d property_agency"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx reverse proxy (optional for production)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web-app
+    networks:
+      - property-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  crm-data:
+  analytics-data:
+  redis-data:
+  postgres-data:
+
+networks:
+  property-network:
+    driver: bridge
+

@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Development version with hot reload and debug mode
+  web-app:
+    build: 
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3000:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      - ./api-gateway/src:/app/src
+    networks:
+      - property-network-dev
+    restart: unless-stopped
+
+  # CRM Service (Development)
+  crm-service:
+    build: ./property-crm
+    ports:
+      - "3001:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      - ./property-crm/src:/app/src
+      - crm-data-dev:/app/src/database
+    networks:
+      - property-network-dev
+    restart: unless-stopped
+
+  # Analytics Service (Development)
+  analytics-service:
+    build: ./analytics-service
+    ports:
+      - "3002:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      - ./analytics-service/src:/app/src
+      - analytics-data-dev:/app/src/database
+    networks:
+      - property-network-dev
+    restart: unless-stopped
+
+  # Redis for development
+  redis-dev:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - property-network-dev
+    restart: unless-stopped
+
+volumes:
+  crm-data-dev:
+  analytics-data-dev:
+
+networks:
+  property-network-dev:
+    driver: bridge
+
